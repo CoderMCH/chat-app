@@ -1,63 +1,51 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View, KeyboardAvoidingView, Platform } from 'react-native';
 import { GiftedChat, Bubble } from 'react-native-gifted-chat';
+import { collection, getDocs, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 
-export const Chat = ({ route, navigation }) => {
-    const { name, bgColor } = route.params;
+export const Chat = ({ route, navigation, db }) => {
+    const { username, bgColor, userID } = route.params;
     const [messages, setMessages] = useState([]);
+    const collectionName = "messages";
 
     useEffect(() => {
-        navigation.setOptions({ title: name });
-        
-        setMessages([
-            {
-                _id: 3,
-                text: `Hello ${name}`,
-                createdAt: new Date(),
-                user: {
-                    _id: 1,
-                    name: `${name}`,
-                    avatar: "https://placeimg.com/140/140/any",
-                },
-            },
-            {
-                _id: 1,
-                text: "Hello developer",
-                createdAt: new Date(),
-                user: {
-                    _id: 2,
-                    name: "React Native",
-                    avatar: "https://placeimg.com/140/140/any",
-                },
-            },
-            {
-                _id: 2,
-                text: 'This is a system message',
-                createdAt: new Date(),
-                system: true,
-            },
-        ]);
+        navigation.setOptions({ title: username });
+
+        const qCollect = query(collection(db, collectionName), orderBy("createdTime", "desc"));
+        const unsubChat = onSnapshot(qCollect, (chatData) => {
+            let newList = [];
+            chatData.forEach(mesg => {
+                let newItem = {
+                    ...mesg.data(),
+                    createdAt: new Date(mesg.data().createdTime.seconds*1000)
+                };
+                newList.push(newItem);
+            })
+            setMessages(newList);
+        })
+        return () => {
+            if (unsubChat) unsubChat();
+        }
     }, []);
 
-    const onSend = (newMessages) => {
-        setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages))
+    const onSend = async (newMessages) => {
+        setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages));
+        let newItem = {
+            ...newMessages[0],
+            createdTime: new Date()
+        }
+        console.log(newItem);
+        await addDoc(collection(db, collectionName), newItem);
     }
 
-    return (<GiftedChat
-        messages={messages}
-        renderBubble={renderBubble}
-        onSend={messages => onSend(messages)}
-        user={{
-            _id: 1
-        }}
-    />)
-
-    return (<View>
+    return (<View style={{ flex: 1 }}>
         <GiftedChat
+            renderBubble={renderBubble}
             messages={messages}
             onSend={messages => onSend(messages)}
             user={{
-                _id: 1
+                _id: userID,
+                name: username
             }}
         />
         { Platform.OS === 'android' || Platform.OS === 'ios' ?

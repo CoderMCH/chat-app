@@ -1,17 +1,28 @@
 import { useState } from "react";
 import { Alert, ImageBackground, StyleSheet, Text, TextInput, View, TouchableOpacity } from "react-native";
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 export const Start = ({ navigation }) => {
-    const [name, setName] = useState('');
+    const [username, setName] = useState('');
 
     const COLORS = ["#090C08", "#474056", "#8A95A5", "#B9C6AE"]
     const [bgColor, setBGColor] = useState(COLORS[3]);
+
+    const auth = getAuth();
+    const signInUser = () => {
+        signInAnonymously(auth).then(res => {
+            navigation.navigate("Chat", {userID: res.user.uid, username: username, bgColor: bgColor});
+            Alert.alert("Signed in Successfully");
+        }).catch(err => {
+            Alert.alert("Unable to sign in, try later again");
+        })
+    }
 
     return (
         <ImageBackground source={require('../assets/BackgroundImage.png')} style={styles.container}>
             <Text style={styles.title}>App Title</Text>
             <View style={styles.content}>
-                <TextInput value={name} onChangeText={setName}
+                <TextInput value={username} onChangeText={setName}
                     style={styles.textInput}
                     placeholder="Your Name"
                 />
@@ -29,10 +40,10 @@ export const Start = ({ navigation }) => {
                 </View>
                 <TouchableOpacity style={styles.button}
                     onPress={() => {
-                        if (name == '') {
+                        if (username == '') {
                             Alert.alert('You need a username');
                         } else {
-                            navigation.navigate('Chat', {name: name, bgColor: bgColor});
+                            signInUser();
                         }
                     }}
                 >
