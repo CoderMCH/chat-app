@@ -20,7 +20,7 @@ export const Start = ({ navigation }) => {
 
     return (
         <ImageBackground source={require('../assets/BackgroundImage.png')} style={styles.container}>
-            <Text style={styles.title}>App Title</Text>
+            <Text style={styles.title}>Chat App</Text>
             <View style={styles.content}>
                 <TextInput value={username} onChangeText={setName}
                     style={styles.textInput}
@@ -70,7 +70,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
         height: '44%',
         width: '88%',
-        padding: '6%'
+        padding: '6%',
+        marginTop: "60%"
     },
     textInput: {
         width: "88%",
