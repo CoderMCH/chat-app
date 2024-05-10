@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View, KeyboardAvoidingView, Platform } from 'react-native';
-import { GiftedChat, Bubble } from 'react-native-gifted-chat';
+import { StyleSheet, View, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { GiftedChat, Bubble, InputToolbar } from 'react-native-gifted-chat';
 import { collection, getDocs, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 
-export const Chat = ({ route, navigation, db }) => {
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const Chat = ({ route, navigation, db, isConnected }) => {
     const { username, bgColor, userID } = route.params;
     const [messages, setMessages] = useState([]);
     const collectionName = "messages";
@@ -11,22 +13,49 @@ export const Chat = ({ route, navigation, db }) => {
     useEffect(() => {
         navigation.setOptions({ title: username });
 
-        const qCollect = query(collection(db, collectionName), orderBy("createdTime", "desc"));
-        const unsubChat = onSnapshot(qCollect, (chatData) => {
-            let newList = [];
-            chatData.forEach(mesg => {
-                let newItem = {
-                    ...mesg.data(),
-                    createdAt: new Date(mesg.data().createdTime.seconds*1000)
-                };
-                newList.push(newItem);
+        var unsubChat = null;
+        if (isConnected) {
+            const qCollect = query(collection(db, collectionName), orderBy("createdTime", "desc"));
+            unsubChat = onSnapshot(qCollect, (chatData) => {
+                let newList = [];
+                chatData.forEach(mesg => {
+                    let newItem = {
+                        ...mesg.data(),
+                        createdAt: new Date(mesg.data().createdTime.seconds*1000)
+                    };
+                    newList.push(newItem);
+                })
+                setMessages(newList);
+                setCachedList(newList);
             })
-            setMessages(newList);
-        })
+        } else {
+            Alert.alert("Connection Lost!!")
+            loadCachedList().then(cachedList => {
+                setMessages(cachedList);
+            });
+        }
+
         return () => {
             if (unsubChat) unsubChat();
         }
-    }, []);
+    }, [isConnected]);
+
+    const setCachedList = async (mesgList) => {
+        try {
+            await AsyncStorage.setItem("mesgList", JSON.stringify(mesgList));
+        } catch (err) {
+            Alert.alert("Unable to cache messages");
+        }
+    }
+    const loadCachedList = async () => {
+        try {
+            let cachedList = await AsyncStorage.getItem("mesgList");
+            return cachedList != null ? JSON.parse(cachedList) : [];
+        } catch (err) {
+            Alert.alert("Unable to load cached messages");
+            return [];
+        }
+    }
 
     const onSend = async (newMessages) => {
         setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages));
@@ -34,13 +63,40 @@ export const Chat = ({ route, navigation, db }) => {
             ...newMessages[0],
             createdTime: new Date()
         }
-        console.log(newItem);
         await addDoc(collection(db, collectionName), newItem);
+    }
+
+    const renderBubble = (props) => {
+        return <Bubble
+          {...props}
+          wrapperStyle={{
+            right: {
+              backgroundColor: "#000",
+            },
+            left: {
+              backgroundColor: "#FFF"
+            }
+          }}
+          textStyle={{
+            right: {
+                color: "green"
+            },
+            left: {
+                color: "red"
+            }
+          }}
+        />
+    }
+    
+    const renderInputToolbar = (props) => {
+        if (isConnected) return <InputToolbar {...props} />;
+        else return null;
     }
 
     return (<View style={{ flex: 1 }}>
         <GiftedChat
             renderBubble={renderBubble}
+            renderInputToolbar={renderInputToolbar}
             messages={messages}
             onSend={messages => onSend(messages)}
             user={{
@@ -60,25 +116,3 @@ const styles = StyleSheet.create({
         alignItems: 'center'
     }
 });
-
-const renderBubble = (props) => {
-    return <Bubble
-      {...props}
-      wrapperStyle={{
-        right: {
-          backgroundColor: "#000",
-        },
-        left: {
-          backgroundColor: "#FFF"
-        }
-      }}
-      textStyle={{
-        right: {
-            color: "green"
-        },
-        left: {
-            color: "red"
-        }
-      }}
-    />
-}
