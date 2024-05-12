@@ -7,7 +7,7 @@ import CustomActions from "./CustomActions";
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const Chat = ({ route, navigation, db, isConnected }) => {
+export const Chat = ({ route, navigation, db, storage, isConnected }) => {
     const { username, bgColor, userID } = route.params;
     const [messages, setMessages] = useState([]);
     const collectionName = "messages";
@@ -96,7 +96,7 @@ export const Chat = ({ route, navigation, db, isConnected }) => {
     }
 
     const renderCustomActions = (props) => {
-        return <CustomActions {...props} />
+        return <CustomActions storage={storage} userID={userID} {...props} />
     }
 
     const renderCustomView = (props) => {

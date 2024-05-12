@@ -3,16 +3,44 @@ import { StyleSheet, View, Text, Alert } from 'react-native';
 import { useActionSheet } from "@expo/react-native-action-sheet"
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { InputToolbar } from "react-native-gifted-chat";
 
-const CustomActions = ({ wrapperStyle, iconTextStyle, onSend }) => {
+const CustomActions = ({ wrapperStyle, iconTextStyle, onSend, storage, userID, renderInputToolbar }) => {
     const actionSheet = useActionSheet();
 
-    function pickImage() {
-        console.log("Pick Image");
+    const generateReference = (uri) => {
+        const timeStamp = (new Date()).getTime();
+        const imageName = uri.split("/")[uri.split("/").length - 1];
+        return `${userID}-${timeStamp}-${imageName}`;
     }
-    function takePhoto() {
-        console.log("Take photo");
+    const uploadAndSendImage = async (imageURI) => {
+        const uniqueRefString = generateReference(imageURI);
+        const newUploadRef = ref(storage, uniqueRefString);
+        const response = await fetch(imageURI);
+        const blob = await response.blob();
+        uploadBytes(newUploadRef, blob).then(async (snapshot) => {
+          const imageURL = await getDownloadURL(snapshot.ref)
+          onSend({ image: imageURL })
+        });
     }
+    const pickImage = async () => {
+        let permissions = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permissions?.granted) {
+            let result = await ImagePicker.launchImageLibraryAsync();
+            if (!result.canceled) await uploadAndSendImage(result.assets[0].uri);
+            else Alert.alert("Permissions haven't been granted.");
+        }
+    }
+    const takePhoto = async () => {
+        let permissions = await ImagePicker.requestCameraPermissionsAsync();
+        if (permissions?.granted) {
+            let result = await ImagePicker.launchCameraAsync();
+            if (!result.canceled) await uploadAndSendImage(result.assets[0].uri);
+            else Alert.alert("Permissions haven't been granted.");
+        }
+    }
+
     async function getLocation() {
         let permissions = await Location.requestForegroundPermissionsAsync();
         if (permissions?.granted) {
@@ -32,7 +60,7 @@ const CustomActions = ({ wrapperStyle, iconTextStyle, onSend }) => {
         }
     }
     const onActionPress = () => {
-        const options = ['Choose From Library', 'Take Picture', 'Send Location', 'Cancel'];
+        const options = ["Select an image from library", "Take a photo", "Share location", 'Cancel'];
         const cancelButtonIndex = options.length - 1;
         actionSheet.showActionSheetWithOptions({
                 options,
@@ -77,7 +105,7 @@ const styles = StyleSheet.create({
     iconText: {
         color: '#b2b2b2',
         fontWeight: 'bold',
-        fontSize: 10,
+        fontSize: 12,
         backgroundColor: 'transparent',
         textAlign: 'center',
     },
